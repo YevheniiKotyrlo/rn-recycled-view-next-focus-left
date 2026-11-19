@@ -1,79 +1,27 @@
-# rn-recycled-view-next-focus-left
+# Android: a recycled View keeps its `nextFocusLeft`
 
-![Build](https://github.com/YevheniiKotyrlo/rn-recycled-view-next-focus-left/workflows/Pre%20Merge%20Checks/badge.svg)
+With view recycling on, a `View` that mounts in place of one that had `nextFocusLeft` gets the old view's Android view
+back with `nextFocusLeftId` still set, so Arrow Left (D-pad Left) from it goes to the old target.
+`BaseViewManager.prepareToRecycleView` resets `nextFocusDown`, `nextFocusForward`, `nextFocusRight` and `nextFocusUp`,
+but not `nextFocusLeft`.
 
-This is your new React Native Reproducer project.
+`MainApplication.kt` turns the `enableViewRecycling` feature flag on after `loadReactNative`. `ReproducerApp/App.tsx`
+renders a row of three focusable `Pressable`s: "Target", "Neighbour" and "Old subject", whose `nextFocusLeft` is
+"Target". Once Arrow Left from "Old subject" has focused "Target", "Old subject" unmounts, and a second later
+"New subject", without `nextFocusLeft`, mounts in its place. `MainActivity.kt` logs which Android view instance each
+subject is drawn by and its `nextFocusLeftId`.
 
-# Reproducer TODO list
-
-- [x] 1. Create a new reproducer project.
-- [ ] 2. Git clone your repository locally.
-- [ ] 3. Edit the project to reproduce the failure you're seeing.
-- [ ] 4. Push your changes, so that Github Actions can run the CI.
-- [ ] 5. Make sure the repository is public and share the link with the issue you reported.
-
-# How to use this Reproducer
-
-This project has been created with `npx @react-native-community/cli init` and is a vanilla React Native app.
-
-> [!IMPORTANT]  
-> Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/set-up-your-environment) so that you have a working environment locally.
-
-## Step 1: Start the Metro Server
-
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
-
-To start Metro, run the following command from the _root_ of your React Native project:
-
-```bash
-# using npm
-npm start
-
-# OR using Yarn
-yarn start
+```sh
+./reproduce.sh
 ```
 
-## Step 2: Start your Application
+`reproduce.sh` builds the release APK for the attached device, installs and starts it, presses Arrow Right until
+"Old subject" holds focus, then Arrow Left; once "New subject" shows, it presses Arrow Right until "New subject" holds
+focus, then Arrow Left, and reads which view holds focus from `uiautomator dump`. It needs adb with one Android device
+attached (`ANDROID_SERIAL` picks one of several), node, yarn and a JDK.
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+Expected: Arrow Left from "New subject" focuses "Neighbour", the view on its left. Seen: it focuses "Target".
 
-### For Android
-
-```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### For iOS
-
-First, make sure you install dependencies with:
-
-```bash
-cd ios && bundle install && bundle exec pod install
-```
-
-Then you can run the iOS app with:
-
-```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
-
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
-
-## Step 3: Modifying your App
-
-Now that you have successfully run the app, let's modify it.
-
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
-
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+Exit 1 while Arrow Left from "New subject" focuses "Target", 0 once it focuses "Neighbour", 2 when another step fails —
+among them Arrow Left from "Old subject" not reaching "Target", or "New subject" not reusing "Old subject"'s Android
+view.
